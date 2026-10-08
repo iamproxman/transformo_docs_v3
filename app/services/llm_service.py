@@ -16,12 +16,15 @@ from app.config import settings
 
 class LLMService:
     MODEL_CANDIDATES = [
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-pro-latest",
+        "gemini-2.5-flash",
+        "gemini-flash-latest",
+        "gemini-2.5-pro",
+        "gemini-pro-latest",
+        "gemini-2.5-flash-lite",
+        "gemini-3-flash-preview",
         "gemini-2.0-flash",
         "gemini-1.5-flash",
         "gemini-1.5-pro",
-        "gemini-pro",
     ]
 
     def __init__(self):

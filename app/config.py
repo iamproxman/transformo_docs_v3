@@ -6,6 +6,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 load_dotenv(".env")
 load_dotenv("../.env")
 
+# Ensure user-installed scoop and local binary tools are in PATH
+user_profile = os.environ.get("USERPROFILE", "")
+if user_profile:
+    scoop_shims = os.path.join(user_profile, "scoop", "shims")
+    if os.path.isdir(scoop_shims) and scoop_shims not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = scoop_shims + os.pathsep + os.environ.get("PATH", "")
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="ignore",
