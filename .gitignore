@@ -16,6 +16,7 @@ dist/
 
 # Python Bytecode & Caches
 __pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 .pytest_cache/

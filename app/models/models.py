@@ -79,6 +79,11 @@ class Document(Base):
     extracted_fields = relationship("ExtractedField", back_populates="document", cascade="all, delete-orphan")
     job_events = relationship("JobEvent", back_populates="document", cascade="all, delete-orphan")
 
+    @property
+    def full_text(self):
+        """Provides access to extracted full text via the text_entry relationship."""
+        return self.text_entry.full_text if self.text_entry else None
+
 class DocumentText(Base):
     __tablename__ = "document_text"
 

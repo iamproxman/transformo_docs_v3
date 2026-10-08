@@ -136,8 +136,6 @@ async def direct_upload(
         ).first()
 
         if existing:
-            if existing.text_entry:
-                existing.full_text = existing.text_entry.full_text
             uploaded_docs.append(existing)
             continue
 
@@ -205,8 +203,6 @@ async def seed_sample_documents(background_tasks: BackgroundTasks, db: Session =
         if existing:
             # Re-process existing doc to update text extraction & fields
             background_tasks.add_task(document_processor.process_document_by_id, existing.id)
-            if existing.text_entry:
-                existing.full_text = existing.text_entry.full_text
             seeded.append(existing)
             continue
 
@@ -264,9 +260,6 @@ def list_documents(status: Optional[DocStatus] = None, limit: int = 50, db: Sess
     if status:
         q = q.filter(Document.status == status)
     docs = q.order_by(Document.created_at.desc()).limit(limit).all()
-    for doc in docs:
-        if doc.text_entry:
-            doc.full_text = doc.text_entry.full_text
     return docs
 
 
@@ -276,8 +269,6 @@ def get_document(document_id: str, db: Session = Depends(get_db)):
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    if doc.text_entry:
-        doc.full_text = doc.text_entry.full_text
     return doc
 
 @router.get("/{document_id}/file")

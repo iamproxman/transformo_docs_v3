@@ -1,10 +1,4 @@
-import os
-from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-# Load .env file from current or root directory
-load_dotenv(".env")
-load_dotenv("../.env")
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -19,13 +13,13 @@ class Settings(BaseSettings):
     API_BASE_URL: str = "http://localhost:8000/api/v1"
     
     # Storage & DB
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./transformo_docs.db")
-    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./storage")
+    DATABASE_URL: str = "sqlite:///./transformo_docs.db"
+    UPLOAD_DIR: str = "./storage"
     
     # API Keys & Bot Secrets
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    INTERNAL_SECRET_KEY: str = os.getenv("INTERNAL_SECRET_KEY", "transformo-docs-secret-key-2026")
+    GEMINI_API_KEY: str = ""
+    TELEGRAM_BOT_TOKEN: str = ""
+    INTERNAL_SECRET_KEY: str = "transformo-docs-secret-key-2026"
     
     # CORS
     CORS_ORIGINS: list[str] = ["*"]

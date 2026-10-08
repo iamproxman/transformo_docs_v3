@@ -1,5 +1,5 @@
 import re
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 from app.models.models import Document, DocumentText, ExtractedField, DocStatus
 from typing import List, Dict, Any, Optional
@@ -37,7 +37,10 @@ class SearchService:
             meaningful_tokens = raw_tokens
 
         # Base document query
-        q = db.query(Document)
+        q = db.query(Document).options(
+            joinedload(Document.extracted_fields),
+            joinedload(Document.text_entry)
+        )
         if status:
             try:
                 q = q.filter(Document.status == DocStatus(status))
@@ -70,7 +73,7 @@ class SearchService:
 
         for doc in all_docs:
             full_text = doc.text_entry.full_text if doc.text_entry and doc.text_entry.full_text else ""
-            fields = db.query(ExtractedField).filter(ExtractedField.document_id == doc.id).all()
+            fields = doc.extracted_fields or []
 
             full_text_lower = full_text.lower()
             fn_lower = (doc.original_filename or "").lower()
@@ -101,26 +104,30 @@ class SearchService:
                         token_matched = True
                         break
 
-                # Doc Type match (+0.30)
-                if token in dt_lower or (token == "hospital" and dt_lower in ["medical_record", "hospital_bill"]):
-                    score += 0.30
-                    token_matched = True
+                if not token_matched:
+                    # Doc Type match (+0.30)
+                    if token in dt_lower or (token == "hospital" and dt_lower in ["medical_record", "hospital_bill"]):
+                        score += 0.30
+                        token_matched = True
 
-                # Full Text match (+0.25 + frequency)
-                if token in full_text_lower:
-                    freq = full_text_lower.count(token)
-                    score += 0.25 + min(freq * 0.03, 0.15)
-                    token_matched = True
+                if not token_matched:
+                    # Full Text match (+0.25 + frequency bonus)
+                    if token in full_text_lower:
+                        freq = full_text_lower.count(token)
+                        score += 0.25 + min(freq * 0.03, 0.15)
+                        token_matched = True
 
-                # Filename match (+0.20)
-                if token in fn_lower:
-                    score += 0.20
-                    token_matched = True
+                if not token_matched:
+                    # Filename match (+0.20)
+                    if token in fn_lower:
+                        score += 0.20
+                        token_matched = True
 
-                # Structured JSON match (+0.20)
-                if not token_matched and token in json_str:
-                    score += 0.20
-                    token_matched = True
+                if not token_matched:
+                    # Structured JSON match (+0.20)
+                    if token in json_str:
+                        score += 0.20
+                        token_matched = True
 
                 if token_matched:
                     matched_token_count += 1
@@ -131,7 +138,10 @@ class SearchService:
 
             # Token coverage ratio boost (+0.30)
             score += (matched_token_count / len(meaningful_tokens)) * 0.30
-            score = min(round(score, 2), 0.99)
+
+            # Normalize score to [0, 1] range to prevent overflow
+            max_possible = 0.40 + len(meaningful_tokens) * 0.35 + 0.30
+            score = min(round(score / max(max_possible, 1.0), 4), 0.99)
 
             snippet = matched_field_str if matched_field_str else self._extract_snippet(full_text, clean_query, meaningful_tokens)
 
