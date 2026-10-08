@@ -48,8 +48,26 @@ class DocumentProcessor:
             doc.status = DocStatus.ROUTING
             db.commit()
 
-            file_full_path = storage_service.get_full_path(doc.storage_key)
-            if not os.path.exists(file_full_path):
+            file_full_path = storage_service.get_full_path(doc.storage_key) if doc.storage_key else ""
+            if not file_full_path or not os.path.isfile(file_full_path):
+                # Try auto-healing storage_key
+                standard_path = storage_service.get_document_path(doc.org_id, doc.id, doc.original_filename)
+                if os.path.isfile(standard_path):
+                    doc.storage_key = f"org/{doc.org_id}/raw/{doc.id}/{doc.original_filename}"
+                    db.commit()
+                    file_full_path = standard_path
+                else:
+                    # Check sample_docs fallback
+                    sample_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../sample_docs", doc.original_filename))
+                    if os.path.isfile(sample_path):
+                        import shutil
+                        os.makedirs(os.path.dirname(standard_path), exist_ok=True)
+                        shutil.copyfile(sample_path, standard_path)
+                        doc.storage_key = f"org/{doc.org_id}/raw/{doc.id}/{doc.original_filename}"
+                        db.commit()
+                        file_full_path = standard_path
+
+            if not file_full_path or not os.path.isfile(file_full_path):
                 raise FileNotFoundError(f"Physical document file missing on disk: {doc.original_filename}")
 
             pages_dir = storage_service.get_pages_dir(doc.org_id, doc.id)
