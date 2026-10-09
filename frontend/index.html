@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TransformoDocs — Intelligent Document Intelligence Platform</title>
+  <meta name="description" content="Upload PDFs and images, extract structured data with AI OCR, and ask questions about your documents using RAG.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header id="app-header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-file-waveform"></i>
+        </div>
+        <div>
+          <span class="logo-text">TransformoDocs</span>
+          <span class="logo-sub">Document Intelligence Platform</span>
+        </div>
+      </div>
+      <nav class="header-nav">
+        <span id="api-status-badge" class="status-pill status-online">
+          <span class="status-dot"></span> System Online
+        </span>
+        <button class="btn btn-ghost" onclick="toggleView('library')" id="nav-library">
+          <i class="fa-solid fa-grid-2"></i> Library
+        </button>
+        <button class="btn btn-ghost" onclick="toggleView('search')" id="nav-search">
+          <i class="fa-solid fa-magnifying-glass"></i> Search
+        </button>
+        <button class="btn btn-ghost" onclick="toggleView('ask')" id="nav-ask">
+          <i class="fa-solid fa-robot"></i> Ask AI
+        </button>
+        <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+          <i class="fa-solid fa-plus"></i> Upload
+        </button>
+        <input type="file" id="file-input" hidden accept=".pdf,.png,.jpg,.jpeg,.webp" multiple>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Upload Drop Overlay -->
+  <div id="drop-overlay" class="drop-overlay">
+    <div class="drop-overlay-inner">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+      <p>Drop files to upload</p>
+    </div>
+  </div>
+
+  <!-- Upload Toast Progress -->
+  <div id="upload-toast" class="upload-toast" style="display:none">
+    <div class="toast-header">
+      <span id="toast-filename"><i class="fa-solid fa-spinner fa-spin"></i> Uploading...</span>
+      <span id="toast-status" class="badge badge-blue">QUEUED</span>
+    </div>
+    <div class="toast-bar-wrap">
+      <div id="toast-bar" class="toast-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-wrap">
+
+    <!-- ===================== LIBRARY VIEW ===================== -->
+    <section id="view-library" class="view active">
+      
+      <!-- Hero Upload Zone -->
+      <div id="dropzone" class="dropzone">
+        <div class="dropzone-bg"></div>
+        <div class="dropzone-content">
+          <div class="upload-ring">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </div>
+          <h2>Drop Documents Here</h2>
+          <p>PDF, PNG, JPG, WEBP — multi-file supported. OCR + AI extraction runs automatically.</p>
+          <div class="dropzone-actions">
+            <button class="btn btn-primary btn-lg" onclick="document.getElementById('file-input').click()">
+              <i class="fa-solid fa-folder-open"></i> Browse Files
+            </button>
+            <button class="btn btn-outline btn-lg" id="seed-btn" onclick="seedSamples()">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Load Demo Documents
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Library Controls -->
+      <div class="library-controls">
+        <div class="library-title-row">
+          <h2>Document Library</h2>
+          <span id="doc-count" class="count-chip">0 docs</span>
+        </div>
+        <div class="filter-row">
+          <div class="filter-tabs" id="filter-tabs">
+            <button class="filter-tab active" data-filter="ALL" onclick="setFilter('ALL', this)">All</button>
+            <button class="filter-tab" data-filter="MEDICAL_RECORD" onclick="setFilter('MEDICAL_RECORD', this)">Medical Records</button>
+            <button class="filter-tab" data-filter="HOSPITAL_BILL" onclick="setFilter('HOSPITAL_BILL', this)">Hospital Bills</button>
+            <button class="filter-tab" data-filter="INVOICE" onclick="setFilter('INVOICE', this)">Invoices</button>
+            <button class="filter-tab" data-filter="RECEIPT" onclick="setFilter('RECEIPT', this)">Receipts</button>
+            <button class="filter-tab" data-filter="RESUME" onclick="setFilter('RESUME', this)">Resumes</button>
+            <button class="filter-tab" data-filter="CONTRACT" onclick="setFilter('CONTRACT', this)">Contracts</button>
+            <button class="filter-tab" data-filter="OTHER" onclick="setFilter('OTHER', this)">Other</button>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="rescanAllDocs()" title="Rescan and re-extract text & fields for all documents">
+            <i class="fa-solid fa-arrows-rotate"></i> Rescan All
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="fetchDocuments(false)" title="Refresh library">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Document Grid -->
+      <div id="doc-grid" class="doc-grid">
+        <div class="empty-state" id="empty-state">
+          <i class="fa-regular fa-folder-open"></i>
+          <h3>No Documents Yet</h3>
+          <p>Upload a PDF or image to get started, or load our demo documents.</p>
+          <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+            <i class="fa-solid fa-plus"></i> Upload First Document
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SEARCH VIEW ===================== -->
+    <section id="view-search" class="view">
+      <div class="page-header">
+        <h2><i class="fa-solid fa-magnifying-glass"></i> Search Documents</h2>
+        <p>Search across extracted text, field values, filenames, and metadata.</p>
+      </div>
+      <div class="search-box-wrap">
+        <div class="search-box-big">
+          <i class="fa-solid fa-magnifying-glass search-icon-big"></i>
+          <input type="text" id="search-input" class="search-input-big" placeholder="Search hospital, patient name, invoices, amounts..." autocomplete="off">
+          <button class="btn btn-primary" id="search-btn" onclick="performSearch()">
+            Search
+          </button>
+        </div>
+        <div class="search-filters">
+          <select id="search-type-filter" class="filter-select">
+            <option value="">All Types</option>
+            <option value="MEDICAL_RECORD">Medical Record</option>
+            <option value="HOSPITAL_BILL">Hospital Bill</option>
+            <option value="INVOICE">Invoice</option>
+            <option value="RECEIPT">Receipt</option>
+            <option value="RESUME">Resume</option>
+            <option value="CONTRACT">Contract</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="search-results" class="search-results">
+        <div class="search-hint">
+          <i class="fa-solid fa-lightbulb"></i>
+          <span>Try searching for <em>"invoice"</em>, <em>"total amount"</em>, a person's name, or any keyword from your documents.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ASK AI VIEW ===================== -->
+    <section id="view-ask" class="view">
+      <div class="ask-layout">
+        <div class="ask-sidebar">
+          <div class="ask-header-block">
+            <div class="ask-ai-icon"><i class="fa-solid fa-robot"></i></div>
+            <h2>RAG Assistant</h2>
+            <p>Ask any question grounded in your uploaded documents. I'll find relevant content and answer with citations.</p>
+          </div>
+          <div class="ask-doc-selector">
+            <label>Focus on specific documents (optional):</label>
+            <div id="ask-doc-list" class="ask-doc-list">
+              <!-- filled dynamically -->
+            </div>
+          </div>
+        </div>
+        <div class="chat-panel">
+          <div id="chat-messages" class="chat-messages">
+            <div class="chat-welcome">
+              <div class="chat-welcome-icon"><i class="fa-solid fa-robot"></i></div>
+              <h3>Hello! I'm your Document AI</h3>
+              <p>Upload documents and ask me anything about them. I'll provide answers with source citations.</p>
+              <div class="starter-questions">
+                <button class="starter-q" onclick="fillQuestion('What is the total invoice amount?')">💰 What is the total invoice amount?</button>
+                <button class="starter-q" onclick="fillQuestion('Who is the vendor or supplier?')">🏢 Who is the vendor or supplier?</button>
+                <button class="starter-q" onclick="fillQuestion('Summarize this document')">📝 Summarize this document</button>
+                <button class="starter-q" onclick="fillQuestion('What are the payment terms?')">📅 What are the payment terms?</button>
+              </div>
+            </div>
+          </div>
+          <div class="chat-input-row">
+            <div class="chat-input-wrap">
+              <input type="text" id="chat-input" class="chat-input" placeholder="Ask a question about your documents..." onkeydown="handleChatKey(event)">
+              <button class="chat-send-btn" onclick="sendChatMessage()" id="chat-send-btn">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================== DOCUMENT MODAL ======================== -->
+  <div id="doc-modal" class="modal-overlay" onclick="handleModalClick(event)">
+    <div class="modal-panel" role="dialog" aria-modal="true">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div id="modal-file-icon" class="modal-file-icon"></div>
+          <div>
+            <h2 id="modal-doc-title">Document Inspector</h2>
+            <div class="modal-meta" id="modal-doc-meta"></div>
+          </div>
+        </div>
+        <div class="modal-header-actions">
+          <button class="btn btn-outline btn-sm" onclick="rescanCurrentDoc()" title="Rescan & re-extract text & fields for this file">
+            <i class="fa-solid fa-rotate-right"></i> Rescan File
+          </button>
+          <a id="modal-download-btn" href="#" class="btn btn-outline btn-sm" download>
+            <i class="fa-solid fa-download"></i> Download
+          </a>
+          <button class="btn btn-ghost btn-sm" onclick="askAboutDoc()" title="Ask AI about this document">
+            <i class="fa-solid fa-robot"></i> Ask AI
+          </button>
+          <button class="btn btn-ghost btn-sm icon-only" onclick="closeModal()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div class="modal-tabs">
+        <button class="modal-tab active" id="tab-btn-preview" onclick="switchTab('preview')">
+          <i class="fa-solid fa-eye"></i> Preview
+        </button>
+        <button class="modal-tab" id="tab-btn-fields" onclick="switchTab('fields')">
+          <i class="fa-solid fa-table-list"></i> Extracted Fields
+        </button>
+        <button class="modal-tab" id="tab-btn-text" onclick="switchTab('text')">
+          <i class="fa-solid fa-align-left"></i> Full Text
+        </button>
+        <button class="modal-tab" id="tab-btn-json" onclick="switchTab('json')">
+          <i class="fa-solid fa-code"></i> JSON Data
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="modal-body">
+
+        <!-- Preview Tab -->
+        <div id="tab-preview" class="tab-pane active">
+          <div class="preview-container" id="preview-container">
+            <div class="preview-loading" id="preview-loading">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <p>Loading preview...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fields Tab -->
+        <div id="tab-fields" class="tab-pane" style="display:none">
+          <div id="fields-content" class="fields-content">
+            <!-- populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Text Tab -->
+        <div id="tab-text" class="tab-pane" style="display:none">
+          <div class="text-panel">
+            <div class="text-panel-header">
+              <span class="text-label">Extracted Full Text</span>
+              <button class="btn btn-ghost btn-sm" onclick="copyFullText()">
+                <i class="fa-solid fa-copy"></i> Copy
+              </button>
+            </div>
+            <pre id="modal-full-text" class="full-text-content"></pre>
+          </div>
+        </div>
+
+        <!-- JSON Tab -->
+        <div id="tab-json" class="tab-pane" style="display:none">
+          <div class="text-panel">
+            <div class="text-panel-header">
+              <span class="text-label">Structured JSON</span>
+              <button class="btn btn-ghost btn-sm" onclick="copyJson()">
+                <i class="fa-solid fa-copy"></i> Copy
+              </button>
+            </div>
+            <pre id="modal-json-text" class="json-content"></pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== CONFIG MODAL ======================== -->
+  <div id="config-modal" class="modal-overlay" onclick="handleConfigModalClick(event)">
+    <div class="modal-panel" style="max-width: 480px;" role="dialog">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-key"></i> API Configuration</h2>
+        <button class="btn btn-ghost btn-sm icon-only" onclick="closeConfigModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <label class="form-label">Gemini API Key (optional — enables AI extraction)</label>
+        <input type="password" id="config-gemini-key" class="form-input" placeholder="AIza...">
+        <p class="form-hint">Get a free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a>. Stored in your <code>.env</code> file on server.</p>
+        <button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="saveConfig()">
+          <i class="fa-solid fa-floppy-disk"></i> Save Configuration
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
